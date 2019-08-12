@@ -1,20 +1,35 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import '@atlaskit/css-reset';
+import styled from 'styled-components';
 import {
   DragDropContext
 } from 'react-beautiful-dnd'
 import initialData from './initial-data';
 import Column from './components/Column';
 
+
+const Container = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-top: 200px;
+`;
+
 class App extends React.Component {
   state = initialData;
 
-  // This is responsible for updating the state
-  // to reflect the drag and drop result. If we did not have this,
-  // it would revert to original array order of list
+  onDragStart = (start) => {
+    const homeIndex = this.state.columnOrder.indexOf(start.source.droppableId);
+    this.setState({
+      homeIndex,
+    })
+  };
+
   onDragEnd = (result) => {
-    console.log("the result is: ", result);
+    this.setState({
+      homeIndex: null,
+    })
+
     const {
       destination,
       source,
@@ -28,50 +43,84 @@ class App extends React.Component {
       return;
     }
 
-    const column = this.state.columns[source.droppableId];
-    const newTaskIds = Array.from(column.taskIds);
-    newTaskIds.splice(source.index, 1);
-    newTaskIds.splice(destination.index, 0, draggableId);
+    const start = this.state.columns[source.droppableId];
+    const finish = this.state.columns[destination.droppableId]
 
-    const newColumn = {
-      ...column,
-      taskIds: newTaskIds,
+    if (start === finish) {
+      const newTaskIds = Array.from(start.taskIds);
+      newTaskIds.splice(source.index, 1);
+      newTaskIds.splice(destination.index, 0, draggableId);
+
+      const newColumn = {
+        ...start,
+        taskIds: newTaskIds,
+      };
+
+      const newState = {
+        ...this.state,
+        columns: {
+          ...this.state.columns,
+          [newColumn.id]: newColumn,
+        },
+      };
+
+      this.setState(newState);
+      return
+    }
+    // moving from one list to another
+    const startTaskIds = Array.from(start.taskIds)
+    // This is removing the item you are dragging from the startTasksIds
+    startTaskIds.splice(source.index, 1);
+    const newStart = {
+      ...start,
+      taskIds: startTaskIds
+    };
+
+    const finishTaskIds = Array.from(finish.taskIds);
+    finishTaskIds.splice(destination.index, 0, draggableId);
+    const newFinish = {
+      ...finish,
+      taskIds: finishTaskIds
     };
 
     const newState = {
       ...this.state,
       columns: {
         ...this.state.columns,
-        [newColumn.id]: newColumn,
+        [newStart.id]: newStart,
+        [newFinish.id]: newFinish,
       },
     };
-
     this.setState(newState);
   }
 
   render() {
-    console.log("The state is: ", this.state);
     return (
       <DragDropContext
         onDragStart={this.onDragStart}
         onDragEnd={this.onDragEnd}
       >
+      <Container>
         {
-          this.state.columnOrder.map(columnId => {
+          this.state.columnOrder.map((columnId, index) => {
             const column = this.state.columns[columnId];
             const tasks = column.taskIds.map(taskId => this.state.tasks[taskId]);
+
+            const isDropDisabled = index < this.state.homeIndex;
 
             return (
               <Column key = {column.id}
                 column = {column}
                 tasks = {tasks}
+                isDropDisabled={isDropDisabled}
               />
             )
           })
         }
+      </Container>
       </DragDropContext>
     )
   }
 }
 
-ReactDOM.render( < App / > , document.getElementById('root'));
+ReactDOM.render( <App /> , document.getElementById('root'));
